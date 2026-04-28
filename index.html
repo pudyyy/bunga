@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bunga dalam Dirimu</title>
+    <!-- Tailwind CSS via CDN as requested -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @font-face {
+            font-family: 'SerifDisplay';
+            src: local('Georgia');
+        }
+        .font-serif { font-family: 'Georgia', serif; }
+
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
+
+        body {
+            background-color: #020617;
+            color: #f1f5f9;
+            font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+            overflow: hidden;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        .bg-radial {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 50%, rgba(76,29,149,0.2), transparent 70%);
+            z-index: -2;
+        }
+
+        /* Glassmorphism utility */
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .glass-input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .glass-input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+
+        /* Views */
+        #landing-view, #result-view {
+            transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
+        }
+
+        .hidden-view {
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+            transform: translateY(20px);
+            z-index: -10;
+        }
+
+        .active-view {
+            opacity: 1;
+            pointer-events: auto;
+            position: relative;
+            transform: translateY(0);
+            z-index: 20;
+        }
+
+        /* Magic Flower CSS Container */
+        .flower-container {
+            position: absolute;
+            bottom: 5%;
+            left: 50%;
+            transform: translateX(-50%) scale(1.25);
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            width: 100%;
+            height: 50vh;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            z-index: 5;
+        }
+
+        .flower-container.visible {
+            opacity: 1;
+        }
+
+        /* The dynamic wrapper that takes JS styles (glow, theme) */
+        #flower-wrapper {
+            position: relative;
+            transform-origin: bottom center;
+            transition: filter 2s ease-in-out, box-shadow 2s ease-in-out;
+            border-radius: 50%; /* for perfect radial glow */
+        }
+
+        /* Stem */
+        .stem {
+            position: relative;
+            width: 8px;
+            height: 0; /* Animates to 200px */
+            background: linear-gradient(to top, #022c02, #22c55e);
+            border-radius: 4px;
+            transform-origin: bottom center;
+            z-index: 1;
+        }
+
+        /* Leaves */
+        .leaf {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #22c55e, #166534);
+            border-radius: 50px 0 50px 0;
+            transform: scale(0);
+            opacity: 0;
+            z-index: 0;
+        }
+
+        .leaf.left {
+            left: -50px;
+            bottom: 40px;
+            transform-origin: bottom right;
+        }
+
+        .leaf.right {
+            left: 8px;
+            bottom: 90px;
+            border-radius: 0 50px 0 50px;
+            transform-origin: bottom left;
+        }
+
+        /* Blossom */
+        .blossom {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            z-index: 2;
+        }
+
+        /* Petals */
+        .petal {
+            position: absolute;
+            bottom: 0;
+            left: -15px; /* Half of width */
+            width: 30px;
+            height: 90px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(236, 72, 153, 0.8) 40%, rgba(139, 92, 246, 0.6) 100%);
+            border-radius: 50% 50% 20% 20%;
+            transform-origin: bottom center;
+            transform: scale(0);
+            opacity: 0;
+            box-shadow: inset 0 0 15px rgba(255,255,255,0.6), 0 0 15px rgba(236, 72, 153, 0.5);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .core {
+            position: absolute;
+            bottom: -15px;
+            left: -15px;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle at 35% 35%, #ffffff 0%, #fef08a 30%, #ca8a04 100%);
+            border-radius: 50%;
+            transform: scale(0);
+            opacity: 0;
+            z-index: 5;
+            box-shadow: 0 0 20px #facc15, inset 0 0 10px rgba(255,255,255,0.8);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+        }
+
+        /* ANIMATION CLASSES - Applied by JS */
+        .grow-stem {
+            animation: growStemAnim 2s 0.2s ease-in-out forwards;
+        }
+        @keyframes growStemAnim {
+            to { height: 220px; }
+        }
+
+        .grow-leaf-left {
+            animation: growLeafLeftAnim 1.5s 1s ease-in-out forwards;
+        }
+        @keyframes growLeafLeftAnim {
+            to { transform: scale(1) rotate(-15deg); opacity: 1; }
+        }
+
+        .grow-leaf-right {
+            animation: growLeafRightAnim 1.5s 1.3s ease-in-out forwards;
+        }
+        @keyframes growLeafRightAnim {
+            to { transform: scale(1) rotate(15deg); opacity: 1; }
+        }
+
+        /* Petal Rotations - Blooming */
+        .bloom-petal-1 { animation: bloomP1 1.5s 2s ease-out forwards; }
+        .bloom-petal-2 { animation: bloomP2 1.5s 2.1s ease-out forwards; }
+        .bloom-petal-3 { animation: bloomP3 1.5s 2.2s ease-out forwards; }
+        .bloom-petal-4 { animation: bloomP4 1.5s 2.3s ease-out forwards; }
+        .bloom-petal-5 { animation: bloomP5 1.5s 2.4s ease-out forwards; }
+        .bloom-petal-6 { animation: bloomP6 1.5s 2.5s ease-out forwards; }
+        .bloom-petal-7 { animation: bloomP7 1.5s 2.6s ease-out forwards; }
+        .bloom-petal-8 { animation: bloomP8 1.5s 2.7s ease-out forwards; }
+        
+        @keyframes bloomP1 { to { transform: scale(1) rotate(0deg) translateY(-15px); opacity: 0.95; } }
+        @keyframes bloomP2 { to { transform: scale(1) rotate(45deg) translateY(-15px); opacity: 0.95; } }
+        @keyframes bloomP3 { to { transform: scale(1) rotate(90deg) translateY(-15px); opacity: 0.95; } }
+        @keyframes bloomP4 { to { transform: scale(1) rotate(135deg) translateY(-15px); opacity: 0.95; } }
+        @keyframes bloomP5 { to { transform: scale(1) rotate(180deg) translateY(-15px); opacity: 0.95; } }
+        @keyframes bloomP6 { to { transform: scale(1) rotate(225deg) translateY(-15px); opacity: 0.95; } }
+        @keyframes bloomP7 { to { transform: scale(1) rotate(270deg) translateY(-15px); opacity: 0.95; } }
+        @keyframes bloomP8 { to { transform: scale(1) rotate(315deg) translateY(-15px); opacity: 0.95; } }
+
+        .bloom-core {
+            animation: bloomCoreAnim 1s 2.8s ease-out forwards;
+        }
+        @keyframes bloomCoreAnim {
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* Particle Stars in Background */
+        .stars {
+            position: fixed;
+            top: -5%; left: -5%; right: -5%; bottom: -5%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .star-layer {
+            position: absolute;
+            inset: 0;
+            will-change: transform;
+        }
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle var(--duration, 3s) infinite alternate;
+            opacity: 0.2;
+        }
+        @keyframes twinkle {
+            from { opacity: 0.2; transform: scale(1); box-shadow: 0; }
+            to { opacity: 0.8; transform: scale(1.5); box-shadow: 0 0 5px rgba(255,255,255,0.8); }
+        }
+    </style>
+</head>
+<body class="relative">
+    <div class="bg-radial"></div>
+    <!-- Starry background generated by JS -->
+    <div id="stars" class="stars"></div>
+
+    <!-- MAIN CONTAINER -->
+    <div class="fixed inset-0 flex flex-col items-center justify-center p-6 z-10">
+        
+        <!-- 1. LANDING STATE -->
+        <main id="landing-view" class="active-view z-10 w-full max-w-xl bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 text-center shadow-2xl flex flex-col items-center space-y-8">
+            <div class="space-y-3">
+                <h1 class="text-4xl md:text-5xl font-serif text-white mb-1">
+                    Bunga<br/>dalam Dirimu
+                </h1>
+                <p class="text-sm tracking-[0.3em] uppercase text-pink-300 mt-4 mx-auto mb-2 font-semibold">
+                    Coba lihat bunga apa yang mekar Buat kamu hari ini Chell. ✨
+                </p>
+            </div>
+            
+            <div class="w-full space-y-4">
+                <input 
+                    type="text" 
+                    id="nameInput" 
+                    placeholder="Ketik namamu di sini..." 
+                    class="w-full px-6 py-4 rounded-3xl bg-white/5 border border-white/10 text-white text-center text-lg placeholder:text-pink-200/50 focus:outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/50 transition-all"
+                    autocomplete="off"
+                >
+                <button 
+                    id="submitBtn" 
+                    class="w-full py-4 bg-pink-600 hover:bg-pink-500 text-white rounded-full font-medium tracking-wide transition-all border border-pink-400/30"
+                >
+                    Tumbuhkan 🌱
+                </button>
+            </div>
+        </main>
+
+        <!-- 2. TRANSITION / FLOWER CONTAINER -->
+        <div id="flower-container" class="flower-container">
+            <div id="flower-wrapper" class="p-8"> <!-- padding to allow glow expansion -->
+                <div id="stem" class="stem">
+                    <div id="leaf1" class="leaf left"></div>
+                    <div id="leaf2" class="leaf right"></div>
+                    <div class="blossom">
+                        <!-- Petals injected via JS or predefined -->
+                        <div class="petal" id="p1"></div>
+                        <div class="petal" id="p2"></div>
+                        <div class="petal" id="p3"></div>
+                        <div class="petal" id="p4"></div>
+                        <div class="petal" id="p5"></div>
+                        <div class="petal" id="p6"></div>
+                        <div class="petal" id="p7"></div>
+                        <div class="petal" id="p8"></div>
+                        <div id="core" class="core"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. RESULT STATE -->
+        <section id="result-view" class="hidden-view absolute top-8 sm:top-12 z-10 w-full max-w-xl bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 text-center shadow-2xl mt-4 flex flex-col items-center">
+            <h2 class="text-sm tracking-[0.3em] uppercase text-pink-300 mb-2 font-semibold" id="greetingText">Halo, ✨</h2>
+            <div class="space-y-1 mb-1">
+                <p class="text-xs text-white/40 uppercase tracking-[0.2em]">Kamu adalah</p>
+                <h3 class="text-3xl font-serif italic text-white" id="flowerNameText">Bunga xyz</h3>
+            </div>
+            
+            <div class="w-full">
+                <p class="text-sm text-pink-200/60 italic mb-6 mt-2" id="philosophyText">"Filosofi di sini"</p>
+                <div class="h-px w-24 bg-pink-500/30 mx-auto mb-6"></div>
+                <p class="text-lg leading-relaxed text-slate-200 px-4" id="messageText">Pesan penyemangat di sini...</p>
+            </div>
+
+            <button 
+                id="resetBtn" 
+                class="mt-10 px-8 py-3 bg-pink-600 hover:bg-pink-500 text-white rounded-full font-medium tracking-wide transition-all border border-pink-400/30 flex items-center justify-center gap-2 mx-auto"
+            >
+                Tanam Benih Lain ↺
+            </button>
+        </section>
+
+    </div>
+
+    <!-- VANILLA JS -->
+    <script>
+        const messages = [
+            { 
+                name: 'Bunga Teratai Pink', 
+                colorTheme: 'hue-rotate(0deg)', 
+                glow: '0 0 30px 10px rgba(236, 72, 153, 0.6)', 
+                philosophy: 'Teratai tumbuh cantik di air yang keruh.', 
+                message: 'Fase tryout beruntun dan overthinking ini ibarat lumpur. Memang melelahkan. Tapi dari proses berdarah-darah inilah kamu bakal mekar jadi versi terbaikmu di hari H UTBK. Kamu jauh lebih kuat dari yang kamu kira.' 
+            },
+            { 
+                name: 'Bunga Dandelion Putih', 
+                colorTheme: 'grayscale(100%) brightness(150%)', 
+                glow: '0 0 30px 10px rgba(255, 255, 255, 0.6)', 
+                philosophy: 'Dandelion rela diterbangkan angin agar bisa tumbuh di tempat yang baru.', 
+                message: 'Tarik napas, biarkan angin membawa pergi keraguanmu. Semua doa dan begadangmu nggak akan sia-sia. Mereka akan mekar indah di kampus impianmu.' 
+            },
+            { 
+                name: 'Bunga Matahari Emas', 
+                colorTheme: 'hue-rotate(90deg)', 
+                glow: '0 0 30px 10px rgba(234, 179, 8, 0.6)', 
+                philosophy: 'Matahari selalu tegak mencari cahaya, setinggi apapun ia tumbuh.', 
+                message: 'Jangan menunduk untuk membandingkan dirimu dengan sainganmu. Tegakkan kepalamu, fokus ke layar dan bukumu. Cahaya masa depanmu sudah di depan mata, gas terus!' 
+            },
+            { 
+                name: 'Bunga Lavender Biru', 
+                colorTheme: 'hue-rotate(180deg)', 
+                glow: '0 0 30px 10px rgba(168, 85, 247, 0.6)', 
+                philosophy: 'Lavender memberikan ketenangan di tengah badai.', 
+                message: 'Aku tahu pikiranmu lagi berisik banget mikirin UTBK. Istirahatlah sebentar. Jaga kesehatan mentalmu, karena saat pengumuman tiba, kamu akan mekar dengan membanggakan.' 
+            },
+            {
+                name: 'Bunga Mawar Merah',
+                colorTheme: 'hue-rotate(30deg) saturate(120%)',
+                glow: '0 0 30px 10px rgba(220, 38, 38, 0.6)',
+                philosophy: 'Mawar mengajarkan bahwa keindahan sejati seringkali dijaga oleh ketangguhan.',
+                message: 'Seperti duri pada mawar, tekad dan disiplinmu adalah pelindung mimpimu. Tetaplah tangguh menghadapi rintangan, karena pada akhirnya kamu akan mekar dengan sangat mempesona.'
+            },
+            {
+                name: 'Bunga Anggrek Ungu',
+                colorTheme: 'hue-rotate(300deg) saturate(110%)',
+                glow: '0 0 30px 10px rgba(168, 85, 247, 0.6)',
+                philosophy: 'Anggrek butuh waktu untuk mekar, namun pesonanya bertahan paling lama.',
+                message: 'Proses belajarmu mungkin terasa panjang dan butuh kesabaran ekstra. Jangan menyerah, karena akar usahamu sedang menancap kuat. Waktumu untuk bersinar pasti akan tiba.'
+            },
+            {
+                name: 'Bunga Melati Putih',
+                colorTheme: 'grayscale(100%) brightness(200%)',
+                glow: '0 0 30px 10px rgba(255, 255, 255, 0.8)',
+                philosophy: 'Melati tidak butuh warna mencolok untuk dikenang, keharumannya membekas di hati.',
+                message: 'Kamu mungkin merasa tidak semenonjol orang lain, tapi ketulusan dan kerja kerasmu akan membuahkan hasil yang manis dan tak terlupakan. Tetaplah melangkah dengan tenang.'
+            },
+            {
+                name: 'Bunga Sakura Biru',
+                colorTheme: 'hue-rotate(220deg) saturate(150%)',
+                glow: '0 0 30px 10px rgba(59, 130, 246, 0.7)',
+                philosophy: 'Sakura mengingatkan kita bahwa keindahan mekar tepat pada waktunya.',
+                message: 'Jangan merasa tertinggal saat melihat orang lain mendahuluimu. Musim mekarmu sudah diatur dengan indah. Nikmati prosesnya, saat tangkai mulai kuat, kamu akan mekar sangat memukau.'
+            }
+        ];
+
+        // Elements
+        const landingView = document.getElementById('landing-view');
+        const resultView = document.getElementById('result-view');
+        const flowerContainer = document.getElementById('flower-container');
+        
+        const nameInput = document.getElementById('nameInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        
+        const flowerWrapper = document.getElementById('flower-wrapper');
+        const stem = document.getElementById('stem');
+        const leaf1 = document.getElementById('leaf1');
+        const leaf2 = document.getElementById('leaf2');
+        const core = document.getElementById('core');
+        const petals = [
+            document.getElementById('p1'), document.getElementById('p2'),
+            document.getElementById('p3'), document.getElementById('p4'),
+            document.getElementById('p5'), document.getElementById('p6'),
+            document.getElementById('p7'), document.getElementById('p8')
+        ];
+
+        // Result Texts
+        const greetingText = document.getElementById('greetingText');
+        const flowerNameText = document.getElementById('flowerNameText');
+        const philosophyText = document.getElementById('philosophyText');
+        const messageText = document.getElementById('messageText');
+
+        let isAnimating = false;
+
+        // Main Logic
+        submitBtn.addEventListener('click', growFlower);
+        nameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') growFlower();
+        });
+        resetBtn.addEventListener('click', resetApp);
+
+        function growFlower() {
+            if (isAnimating) return;
+            isAnimating = true;
+
+            const userName = nameInput.value.trim() || 'Pemimpi';
+            
+            // 1. Hide Landing
+            landingView.classList.remove('active-view');
+            landingView.classList.add('hidden-view');
+
+            // 2. Select random flower
+            const randIndex = Math.floor(Math.random() * messages.length);
+            const selectedFlower = messages[randIndex];
+
+            // 3. Prepare texts
+            greetingText.textContent = `Halo, ${userName} ✨`;
+            flowerNameText.textContent = selectedFlower.name;
+            philosophyText.textContent = `"${selectedFlower.philosophy}"`;
+            messageText.textContent = selectedFlower.message;
+
+            // 4. Apply dynamic magic to flower wrapper
+            flowerWrapper.style.filter = selectedFlower.colorTheme;
+            flowerWrapper.style.boxShadow = selectedFlower.glow;
+
+            // 5. Show and Animate Flower
+            flowerContainer.classList.add('visible');
+            
+            requestAnimationFrame(() => {
+                // Add animation classes
+                stem.classList.add('grow-stem');
+                leaf1.classList.add('grow-leaf-left');
+                leaf2.classList.add('grow-leaf-right');
+                
+                petals.forEach((p, index) => {
+                    p.classList.add(`bloom-petal-${index + 1}`);
+                });
+                
+                core.classList.add('bloom-core');
+            });
+
+            // 6. Show Result State after delay (Wait for CSS bloom: ~3000ms)
+            setTimeout(() => {
+                resultView.classList.remove('hidden-view');
+                resultView.classList.add('active-view');
+                isAnimating = false;
+            }, 3500);
+        }
+
+        function resetApp() {
+            if (isAnimating) return;
+
+            // Hide result
+            resultView.classList.remove('active-view');
+            resultView.classList.add('hidden-view');
+
+            // Hide flower container & remove inline styles
+            flowerContainer.classList.remove('visible');
+
+            setTimeout(() => {
+                flowerWrapper.style.filter = '';
+                flowerWrapper.style.boxShadow = '';
+
+                // Remove animation classes
+                stem.classList.remove('grow-stem');
+                leaf1.classList.remove('grow-leaf-left');
+                leaf2.classList.remove('grow-leaf-right');
+                petals.forEach((p, index) => {
+                    p.classList.remove(`bloom-petal-${index + 1}`);
+                });
+                core.classList.remove('bloom-core');
+            }, 1000); // Wait for fade out to snap styles
+
+            // Show landing again
+            setTimeout(() => {
+                nameInput.value = '';
+                landingView.classList.remove('hidden-view');
+                landingView.classList.add('active-view');
+                nameInput.focus();
+            }, 800);
+        }
+
+        // Generate gentle starry background with interactive parallax
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            
+            // Create parallax layers
+            const layers = [
+                { el: document.createElement('div'), speed: 0.02 }, // distant stars (slow)
+                { el: document.createElement('div'), speed: 0.05 }, // mid stars
+                { el: document.createElement('div'), speed: 0.08 }  // near stars (fast)
+            ];
+            
+            layers.forEach(layer => {
+                layer.el.className = 'star-layer';
+                starsContainer.appendChild(layer.el);
+            });
+
+            const count = 75;
+            for(let i=0; i<count; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 3 + 1;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.setProperty('--duration', `${Math.random() * 3 + 2}s`);
+                star.style.animationDelay = `${Math.random() * 2}s`;
+                
+                // Assign star to a random layer
+                const randomLayer = layers[Math.floor(Math.random() * layers.length)];
+                randomLayer.el.appendChild(star);
+            }
+
+            // Mouse move interaction
+            let targetX = 0;
+            let targetY = 0;
+            let currentX = 0;
+            let currentY = 0;
+
+            document.addEventListener('mousemove', (e) => {
+                // Calculate cursor position relative to center (-1 to 1)
+                const x = (e.clientX / window.innerWidth - 0.5) * 2;
+                const y = (e.clientY / window.innerHeight - 0.5) * 2;
+                
+                // Max movement in pixels
+                targetX = x * 30; 
+                targetY = y * 30;
+            });
+
+            function animateParallax() {
+                // Smooth interpolation (easing)
+                currentX += (targetX - currentX) * 0.05;
+                currentY += (targetY - currentY) * 0.05;
+
+                // Apply transforms to layers based on their speed
+                layers.forEach((layer, index) => {
+                    // Slight rotation based on X movement for swirling effect
+                    const rotation = currentX * layer.speed * 0.5;
+                    const tx = currentX * layer.speed * 100;
+                    const ty = currentY * layer.speed * 100;
+                    
+                    layer.el.style.transform = `translate(${tx}px, ${ty}px) rotate(${rotation}deg)`;
+                });
+
+                requestAnimationFrame(animateParallax);
+            }
+            animateParallax();
+        }
+        createStars();
+    </script>
+</body>
+</html>
